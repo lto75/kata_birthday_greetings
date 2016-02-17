@@ -2,6 +2,10 @@ package it.xpug.kata.birthday_greetings;
 
 import static org.junit.Assert.*;
 
+import it.xpug.kata.core.IEmployeeRepository;
+import it.xpug.kata.core.IMessageService;
+import it.xpug.kata.implementation.EmployeeFileRepository;
+import it.xpug.kata.implementation.MessageService;
 import org.junit.*;
 
 import com.dumbster.smtp.*;
@@ -12,11 +16,15 @@ public class AcceptanceTest {
 	private static final int NONSTANDARD_PORT = 9999;
 	private BirthdayService birthdayService;
 	private SimpleSmtpServer mailServer;
+	private IMessageService messageService;
+	private IEmployeeRepository employeeRepository;
 
 	@Before
 	public void setUp() throws Exception {
 		mailServer = SimpleSmtpServer.start(NONSTANDARD_PORT);
-		birthdayService = new BirthdayService();
+		messageService = new MessageService("localhost",NONSTANDARD_PORT);
+		employeeRepository = new EmployeeFileRepository("employee_data.txt");
+		birthdayService = new BirthdayService(messageService,employeeRepository);
 	}
 
 	@After
@@ -28,11 +36,11 @@ public class AcceptanceTest {
 	@Test
 	public void willSendGreetings_whenItsSomebodysBirthday() throws Exception {
 
-		birthdayService.sendGreetings("employee_data.txt", new XDate("2008/10/08"), "localhost", NONSTANDARD_PORT);
+		birthdayService.sendGreetings(new XDate("2008/10/08"));
 
 		assertEquals("message not sent?", 1, mailServer.getReceivedEmailSize());
 		SmtpMessage message = (SmtpMessage) mailServer.getReceivedEmail().next();
-		assertEquals("Happy Birthday, dear John!", message.getBody());
+		assertEquals("Happy Birthday, dear John", message.getBody());
 		assertEquals("Happy Birthday!", message.getHeaderValue("Subject"));
 		String[] recipients = message.getHeaderValues("To");
 		assertEquals(1, recipients.length);
@@ -41,7 +49,7 @@ public class AcceptanceTest {
 
 	@Test
 	public void willNotSendEmailsWhenNobodysBirthday() throws Exception {
-		birthdayService.sendGreetings("employee_data.txt", new XDate("2008/01/01"), "localhost", NONSTANDARD_PORT);
+		birthdayService.sendGreetings(new XDate("2008/01/01"));
 
 		assertEquals("what? messages?", 0, mailServer.getReceivedEmailSize());
 	}
